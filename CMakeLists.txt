@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
+
+# Fester Compiler: clang. (Der parallele Makefile-Build kompiliert mit gcc.)
+# Achtung: greift nur beim ersten Konfigurieren - ein bereits mit gcc
+# konfiguriertes build/ muss vorher geloescht werden.
+set(CMAKE_C_COMPILER clang)
+
 project(path3d C)
 
 # Gleiche Sprachversion wie im Makefile: striktes C17 (-std=c17).
