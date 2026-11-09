@@ -4,14 +4,14 @@
 /* ==================================================================
  * pathfinding - C-Port von pathfinding.go (A*-Suche im 2D-Gitter).
  *
- * Statt Go-Slices/-Maps werden die Datenstrukturen aus lib_core.c
- * verwendet:
+ * Statt Go-Slices/-Maps werden die Datenstrukturen aus lib3d
+ * (lib3d_util.c) verwendet:
  *   - OpenSet / Path  -> dynamisches Array arr_* (Ersatz fuer Slice)
  *   - walls / ClosedSet / nodes -> generische HashMap hm_* (Ersatz
  *     fuer Go's map)
  * ================================================================== */
 
-#include "lib_core.h"
+#include "lib3d.h"
 
 #ifdef __cplusplus
 extern "C" {

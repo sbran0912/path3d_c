@@ -23,6 +23,7 @@
  * ================================================================== */
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -163,6 +164,56 @@ Vec2 project(double fov, Vec3 v);            /* 2D-Projektion fuer Overlays */
 double l3d_constrain(double value, double lo, double hi);
 int    l3d_random(int n1, int n2);            /* ganzzahlig in [n1, n2) */
 double l3d_random_float(double lo, double hi);/* in [lo, hi) */
+float  limit_num(float number, float limit);  /* begrenzt den Betrag, Vorzeichen bleibt */
+
+/* ------------------------------------------------------------------
+ * DYNAMISCHES ARRAY  (frueher in lib_core.c)
+ * Wachsend (grosszuegig gepuffert), Elemente werden kopiert.
+ * Achtung: arr_push / arr_reduce koennen den Speicher verschieben -
+ * den Rueckgabewert immer zurueckspeichern!
+ * ------------------------------------------------------------------ */
+void  *arr_create(size_t capacity, size_t elemsize);
+size_t arr_len(void *arr);
+size_t arr_cap(void *arr);
+void  *arr_push(void *arr, void *val);
+void   arr_pop(void *arr, size_t idx);
+void  *arr_reduce(void *arr);
+void   arr_delete(void *arr);  /* setzt Laenge auf 0 (Kapazitaet bleibt) */
+void   arr_free(void *arr);
+
+/* ------------------------------------------------------------------
+ * HASH-MAP  (generisch, Ersatz fuer Go's map[K]V; frueher in lib_core.c)
+ *
+ * Werte und Schluessel werden kopiert (keysize/valsize). hash/eq duerfen
+ * NULL sein - dann wird FNV-1a ueber die Schluesselbytes bzw. memcmp
+ * verwendet.
+ * ------------------------------------------------------------------ */
+typedef uint64_t (*HashMap_HashFn)(const void *key);
+typedef int (*HashMap_EqFn)(const void *keyA, const void *keyB);
+
+typedef struct HmBucket HmBucket;
+
+typedef struct HashMap {
+    HmBucket **buckets;
+    size_t     nbuckets;
+    size_t     count;
+    size_t     keysize;
+    size_t     valsize;
+    HashMap_HashFn hash;
+    HashMap_EqFn   eq;
+} HashMap;
+
+HashMap *hm_create(int capacity, size_t keysize, size_t valsize,
+                   HashMap_HashFn hash, HashMap_EqFn eq);
+void     hm_free(HashMap *m);
+void     hm_clear(HashMap *m);
+size_t   hm_size(HashMap *m);
+int      hm_contains(HashMap *m, const void *key);
+void    *hm_get(HashMap *m, const void *key);   /* NULL, wenn abwesend */
+void     hm_put(HashMap *m, const void *key, const void *val);
+void     hm_remove(HashMap *m, const void *key);
+void     hm_foreach(HashMap *m, void (*cb)(const void *key, void *val, void *ud),
+                    void *ud);
 
 /* ------------------------------------------------------------------
  * MESH  (Port von mesh.go)

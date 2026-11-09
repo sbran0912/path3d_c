@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
-#include "lib_core.h"
 #include "lib3d.h"
 #include "pathfinding.h"
 
@@ -159,7 +159,7 @@ static void draw(void) {
 }
 
 int main(void) {
-    random_init(); /* gleicher Seed-Mechanismus wie lib_core */
+    srand((unsigned) time(NULL)); /* Zufalls-Seed fuer l3d_random_float() */
 
     /* Zufaelliges Gitter; Start und Ziel duerfen keine Waende sein. */
     HashMap *walls = hm_create(4096, sizeof(Point), sizeof(int), NULL, NULL);

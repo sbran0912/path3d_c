@@ -1,10 +1,8 @@
 CC = gcc
-# _POSIX_C_SOURCE global setzen, damit glibc's random(void) nicht deklariert
-# wird und unser int random(int, int) aus lib3d/lib_core.h nicht kollidiert.
-CFLAGS = -Wall -Wextra -O2 -std=gnu11 -D_POSIX_C_SOURCE=199309L -Ilib3d -I.
+CFLAGS = -Wall -Wextra -O2 -std=c17 -Ilib3d -I.
 LDFLAGS = -lglfw -lGL -lm
 
-LIB3D_SRCS = lib3d/lib_core.c lib3d/glcore.c lib3d/lib3d_util.c lib3d/lib3d_mesh.c lib3d/lib3d.c
+LIB3D_SRCS = lib3d/glcore.c lib3d/lib3d_util.c lib3d/lib3d_mesh.c lib3d/lib3d.c
 APP_SRCS = pathfinding.c main.c
 SRCS = $(LIB3D_SRCS) $(APP_SRCS)
 OBJDIR = obj
@@ -19,10 +17,10 @@ all: $(TARGET)
 $(TARGET): $(OBJS) | $(BINDIR)
 	$(CC) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
-$(OBJDIR)/lib3d/%.o: lib3d/%.c lib3d/lib_core.h lib3d/lib3d.h lib3d/glcore.h | $(OBJDIR)/lib3d
+$(OBJDIR)/lib3d/%.o: lib3d/%.c lib3d/lib3d.h lib3d/glcore.h | $(OBJDIR)/lib3d
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-$(OBJDIR)/%.o: %.c pathfinding.h lib3d/lib_core.h lib3d/lib3d.h | $(OBJDIR)
+$(OBJDIR)/%.o: %.c pathfinding.h lib3d/lib3d.h | $(OBJDIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 $(OBJDIR) $(OBJDIR)/lib3d $(BINDIR):

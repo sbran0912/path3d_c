@@ -276,3 +276,251 @@ double l3d_random_float(double lo, double hi) {
 int l3d_random(int n1, int n2) {
     return (int) floor(l3d_random_float(0.0, 1.0) * (double)(n2 - n1) + (double)n1);
 }
+
+float limit_num(float number, float limit) {
+    int vorzeichen = (number < 0) ? -1 : 1;
+    float numberMag = number * vorzeichen;
+    if (numberMag > limit) numberMag = limit;
+
+    return numberMag * vorzeichen;
+}
+
+/* ==================================================================
+ * DYNAMISCHES ARRAY  (frueher in lib_core.c)
+ * ================================================================== */
+
+void* arr_create(size_t capacity, size_t elemsize) {
+    size_t *raw = malloc(3 * sizeof(size_t) + (capacity * elemsize));
+    raw[0] = 0;                 // Number of elements currently in the array
+    raw[1] = capacity;         // capacity - how many elements can the array currently store
+    raw[2] = elemsize;           // Size of elements
+    return (void*) &raw[3];     // Pointer to the beginning of the array
+}
+
+size_t arr_len(void* arr) {
+    return *((size_t*)arr - 3);
+}
+
+size_t arr_cap(void* arr) {
+    return *((size_t*)arr - 2);
+}
+
+void* arr_push(void* arr, void* val) {
+    size_t* raw = (size_t*)(void*)arr - 3;
+    size_t len = raw[0];
+    size_t cap = raw[1];
+    size_t elemsize = raw[2];
+
+    len++;                  //increase counter
+    raw[0] = len;           //save counter in array
+
+    if (len > cap) {
+        size_t new_cap = cap + 10;
+        raw[1] = new_cap;      //calculate new capacity
+        raw = realloc(raw, 3 * sizeof(size_t) + (new_cap * elemsize));
+        arr = (void*)&raw[3]; //Array-Pointer wird wieder auf richtigen Startpunkt gestellt
+    }
+
+    char* new_item = (char*)&raw[3] + ((len-1) * elemsize);   //count 1 = index 0, count 2 = index 1 etc.
+    memcpy(new_item, val, elemsize);
+    return arr;
+}
+
+void arr_pop(void* arr, size_t idx) {
+    size_t* raw = (size_t*)(void*)arr - 3;
+    size_t len = raw[0];
+    size_t elemsize = raw[2];
+    while (idx < len -1) {
+        char* val = (char*)&raw[3] + ((idx + 1) * elemsize); //Pointer auf nächstes Element
+        char* upd_item = (char*)&raw[3] + (idx * elemsize); //Pointer aktuelles Element
+        memcpy(upd_item, val, elemsize); //Kopiere Wert vom nächsten Element auf aktuelles Element
+        idx++;
+    }
+    len--;
+    raw[0] = len;
+}
+
+void* arr_reduce(void* arr) {
+    size_t* raw = (size_t*)(void*)arr - 3;
+    size_t len = raw[0];
+    size_t cap = raw[1];
+    size_t elemsize = raw[2];
+
+    if (len < cap) {
+        cap = len;
+        raw[1] = cap; //Kapazität auf Länge setzen
+        raw = realloc(raw, 3 * sizeof(size_t) + (len * elemsize)); //Speicherbereich kürzen
+        arr = (void*)&raw[3]; //Array-Pointer wird wieder auf richtigen Startpunkt gestellt
+    }
+    return arr;
+}
+
+void arr_delete(void* arr) {
+    size_t* raw = (size_t*)(void*)arr - 3;
+    raw[0] = 0;
+}
+
+void arr_free(void* arr) {
+    size_t* raw = (size_t*)(void*)arr - 3;
+    free(raw);
+}
+
+/* ==================================================================
+ * HASH-MAP  (generisch, Ersatz fuer Go's map[K]V; frueher in lib_core.c)
+ *
+ * Verkettet in Buckets; waechst automatisch, sobald der Fuellgrad
+ * ~0.75 ueberschreitet. Schluessel und Werte werden als rohe Bytes
+ * kopiert (memcpy). Optional koennen eigene Hash-/Vergleichsfunktionen
+ * uebergeben werden (NULL = FNV-1a ueber die Bytes bzw. memcmp).
+ * ================================================================== */
+
+struct HmBucket {
+    void *key;
+    void *val;
+    struct HmBucket *next;
+};
+
+static uint64_t hm_fnv(const void *key, size_t len) {
+    const unsigned char *p = (const unsigned char*) key;
+    uint64_t h = 14695981039346656037ULL;
+    for (size_t i = 0; i < len; i++) {
+        h ^= p[i];
+        h *= 1099511628211ULL;
+    }
+    return h;
+}
+
+static uint64_t hm_hash(const HashMap *m, const void *key) {
+    if (m->hash) return m->hash(key);
+    return hm_fnv(key, m->keysize);
+}
+
+static int hm_eq(const HashMap *m, const void *ka, const void *kb) {
+    if (m->eq) return m->eq(ka, kb);
+    return memcmp(ka, kb, m->keysize) == 0;
+}
+
+HashMap* hm_create(int capacity, size_t keysize, size_t valsize,
+                   HashMap_HashFn hash, HashMap_EqFn eq) {
+    if (capacity < 8) capacity = 8;
+    HashMap *m = malloc(sizeof(HashMap));
+    m->nbuckets = (size_t) capacity;
+    m->buckets = calloc(m->nbuckets, sizeof(HmBucket*));
+    m->count = 0;
+    m->keysize = keysize;
+    m->valsize = valsize;
+    m->hash = hash;
+    m->eq = eq;
+    return m;
+}
+
+static void hm_rehash(HashMap *m, size_t new_cap) {
+    HmBucket **nb = calloc(new_cap, sizeof(HmBucket*));
+    for (size_t i = 0; i < m->nbuckets; i++) {
+        HmBucket *b = m->buckets[i];
+        while (b) {
+            HmBucket *next = b->next;
+            size_t idx = (size_t)(hm_hash(m, b->key) % new_cap);
+            b->next = nb[idx];
+            nb[idx] = b;
+            b = next;
+        }
+    }
+    free(m->buckets);
+    m->buckets = nb;
+    m->nbuckets = new_cap;
+}
+
+static void hm_grow(HashMap *m) {
+    if (m->count * 4 >= m->nbuckets * 3) {
+        hm_rehash(m, m->nbuckets * 2 + 1);
+    }
+}
+
+void hm_free(HashMap *m) {
+    if (!m) return;
+    hm_clear(m);
+    free(m->buckets);
+    free(m);
+}
+
+void hm_clear(HashMap *m) {
+    for (size_t i = 0; i < m->nbuckets; i++) {
+        HmBucket *b = m->buckets[i];
+        while (b) {
+            HmBucket *next = b->next;
+            free(b->key);
+            free(b->val);
+            free(b);
+            b = next;
+        }
+        m->buckets[i] = NULL;
+    }
+    m->count = 0;
+}
+
+size_t hm_size(HashMap *m) {
+    return m ? m->count : 0;
+}
+
+int hm_contains(HashMap *m, const void *key) {
+    size_t idx = (size_t)(hm_hash(m, key) % m->nbuckets);
+    for (HmBucket *b = m->buckets[idx]; b; b = b->next) {
+        if (hm_eq(m, key, b->key)) return 1;
+    }
+    return 0;
+}
+
+void *hm_get(HashMap *m, const void *key) {
+    size_t idx = (size_t)(hm_hash(m, key) % m->nbuckets);
+    for (HmBucket *b = m->buckets[idx]; b; b = b->next) {
+        if (hm_eq(m, key, b->key)) return b->val;
+    }
+    return NULL;
+}
+
+void hm_put(HashMap *m, const void *key, const void *val) {
+    size_t idx = (size_t)(hm_hash(m, key) % m->nbuckets);
+    for (HmBucket *b = m->buckets[idx]; b; b = b->next) {
+        if (hm_eq(m, key, b->key)) {
+            memcpy(b->val, val, m->valsize);
+            return;
+        }
+    }
+    hm_grow(m);
+    idx = (size_t)(hm_hash(m, key) % m->nbuckets);
+    HmBucket *b = malloc(sizeof(HmBucket));
+    b->key = malloc(m->keysize);
+    b->val = malloc(m->valsize);
+    memcpy(b->key, key, m->keysize);
+    memcpy(b->val, val, m->valsize);
+    b->next = m->buckets[idx];
+    m->buckets[idx] = b;
+    m->count++;
+}
+
+void hm_remove(HashMap *m, const void *key) {
+    size_t idx = (size_t)(hm_hash(m, key) % m->nbuckets);
+    HmBucket **link = &m->buckets[idx];
+    while (*link) {
+        HmBucket *b = *link;
+        if (hm_eq(m, key, b->key)) {
+            *link = b->next;
+            free(b->key);
+            free(b->val);
+            free(b);
+            m->count--;
+            return;
+        }
+        link = &b->next;
+    }
+}
+
+void hm_foreach(HashMap *m, void (*cb)(const void *key, void *val, void *ud),
+                void *ud) {
+    for (size_t i = 0; i < m->nbuckets; i++) {
+        for (HmBucket *b = m->buckets[i]; b; b = b->next) {
+            cb(b->key, b->val, ud);
+        }
+    }
+}
