@@ -18,10 +18,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(path3d
     lib3d/glcore.c
     lib3d/lib3d_util.c
-    lib3d/lib3d_mesh.c
     lib3d/lib3d.c
-    src/pathfinding.c
-    src/main.c
+    app/pathfinding.c
+    app/main.c
 )
 
 target_include_directories(path3d PRIVATE

@@ -3,8 +3,8 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c17 -Ilib3d
 LDFLAGS = -lglfw -lGL -lm
 
-SRCS = lib3d/glcore.c lib3d/lib3d_util.c lib3d/lib3d_mesh.c lib3d/lib3d.c \
-       src/pathfinding.c src/main.c
+SRCS = lib3d/glcore.c lib3d/lib3d_util.c lib3d/lib3d.c \
+       app/pathfinding.c app/main.c
 OBJDIR = obj
 BINDIR = bin
 OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
@@ -37,9 +37,9 @@ cmake:
 	cmake -S . -B $(BUILDDIR) -G Ninja
 	cmake --build $(BUILDDIR)
 
-# Entfernt den CMake-Build samt compile_commands.json-Symlink.
+# Entfernt den CMake-Build.
 cmake-clean:
-	rm -rf $(BUILDDIR) compile_commands.json
+	rm -rf $(BUILDDIR)
 
 # Baut und startet den clang-Build ($(BUILDDIR)/path3d).
 cmake-run: cmake

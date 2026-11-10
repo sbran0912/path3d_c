@@ -50,7 +50,7 @@ anstoßen:
 ```sh
 make cmake        # konfiguriert und baut build/path3d
 make cmake-run    # baut und startet build/path3d
-make cmake-clean  # entfernt build/ und den compile_commands.json-Symlink
+make cmake-clean  # entfernt build/
 ```
 
 `make` bleibt dabei weiterhin der gcc-Build nach `bin/path3d`.
@@ -66,7 +66,7 @@ Beide öffnen ein GLFW/OpenGL-Fenster und brauchen daher eine grafische Umgebung
 
 ## Editor / clangd
 
-Der CMake-Build erzeugt `build/compile_commands.json` (clang), auf die der
-Symlink `compile_commands.json` im Projektwurzelverzeichnis zeigt. Damit findet
-clangd die Compile-Flags automatisch. Der Symlink ist nur gültig, solange
-`build/` existiert.
+Der CMake-Build erzeugt `build/compile_commands.json` (clang). Damit clangd
+diese Compile-Datenbank findet, verweist die Datei `.clangd` im
+Projektwurzelverzeichnis mit `CompilationDatabase: build` darauf – ein Symlink
+`compile_commands.json` im Projektwurzelverzeichnis ist dafür nicht nötig.
