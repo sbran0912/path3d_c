@@ -18,10 +18,10 @@
  * XZ-Ebene (y=0).
  * ================================================================== */
 
-#define EDGE_CELLS  40                            /* Felder pro Achse */
-#define CELL_SIZE   1.0                           /* Kantenlaenge eines Feldes */
-#define EDGE_LENGTH (EDGE_CELLS * CELL_SIZE)      /* Kantenlaenge des Gitters */
-#define CUBE_SIZE   0.9                           /* Wuerfelkante */
+#define EDGE_CELLS  40                            // Felder pro Achse
+#define CELL_SIZE   1.0                           // Kantenlaenge eines Feldes
+#define EDGE_LENGTH (EDGE_CELLS * CELL_SIZE)      // Kantenlaenge des Gitters
+#define CUBE_SIZE   0.9                           // Wuerfelkante
 
 /* --- Globale Szenen-/Loop-Daten (Ersatz fuer die Go-Closure) --- */
 static Solver    *g_solver     = NULL;
@@ -30,18 +30,18 @@ static Mesh       g_cubeMesh;
 static Mesh       g_gridMesh;
 static ShapeStyle g_gridStyle;
 static ShapeStyle g_cubeStyle;
-static void      *instances    = NULL; /* arr_* von Instance */
+static void      *instances    = NULL; // arr_* von Instance
 
-/* cellCenter rechnet Weltkoordinaten der Feldmitte fuer ein Feld
- * (row, col). col -> X-Achse, row -> Z-Achse, Feldmitte +0.5-Verschiebung. */
+// cellCenter rechnet Weltkoordinaten der Feldmitte fuer ein Feld
+// (row, col). col -> X-Achse, row -> Z-Achse, Feldmitte +0.5-Verschiebung.
 static void cellCenter(int row, int col, double *x, double *z) {
     double half = EDGE_LENGTH / 2.0;
     *x = -half + ((double) col + 0.5) * CELL_SIZE;
     *z = -half + ((double) row + 0.5) * CELL_SIZE;
 }
 
-/* random_grid erzeugt eine Map mit besetzten Feldern (Wand) fuer ein
- * width x height-Grid mit zufaellig verteilten Waenden. */
+// random_grid erzeugt eine Map mit besetzten Feldern (Wand) fuer ein
+// width x height-Grid mit zufaellig verteilten Waenden.
 static void random_grid(int width, int height, double wallChance,
                         HashMap *walls) {
     for (int y = 0; y < height; y++) {
@@ -57,7 +57,7 @@ static void random_grid(int width, int height, double wallChance,
 
 /* --- Kontext fuer den cube_cb-Callback --- */
 typedef struct {
-    void      *instances; /* arr_* von Instance */
+    void      *instances; // arr_* von Instance
     ColorState col;
 } CubeCtx;
 
@@ -77,24 +77,24 @@ static void cube_cb(const void *key, void *val, void *ud) {
     ctx->instances = append_cube(ctx->instances, x, z, ctx->col);
 }
 
-/* draw_cubes haengt fuer jede Gruppe (Waende, Closed-/Open-Set, Pfad)
- * eine Wuerfel-Instanz an und liefert das (evtl. verschobene) Array zurueck. */
+// draw_cubes haengt fuer jede Gruppe (Waende, Closed-/Open-Set, Pfad)
+// eine Wuerfel-Instanz an und liefert das (evtl. verschobene) Array zurueck.
 static void *draw_cubes(void *arr, Solver *solver) {
     CubeCtx ctx;
 
-    /* Besetzte Grid-Felder (Waende) in rot */
+    // Besetzte Grid-Felder (Waende) in rot
     ctx.instances = arr;
     ctx.col = parse_hex("#ff0000");
     hm_foreach(solver->walls, cube_cb, &ctx);
     arr = ctx.instances;
 
-    /* Bereits verarbeitete Punkte (orange) */
+    // Bereits verarbeitete Punkte (orange)
     ctx.instances = arr;
     ctx.col = parse_hex("#ffcc33");
     hm_foreach(solver->closedSet, cube_cb, &ctx);
     arr = ctx.instances;
 
-    /* Noch offene Punkte (hellblau) */
+    // Noch offene Punkte (hellblau)
     ctx.instances = arr;
     ctx.col = parse_hex("#87CEEB");
     {
@@ -108,7 +108,7 @@ static void *draw_cubes(void *arr, Solver *solver) {
     }
     ctx.instances = arr;
 
-    /* Bisher gefundener Pfad (gruen) */
+    // Bisher gefundener Pfad (gruen)
     ctx.col = parse_hex("#87eba2");
     {
         size_t n = 0;
@@ -125,7 +125,7 @@ static void *draw_cubes(void *arr, Solver *solver) {
     return arr;
 }
 
-/* Loop (Ersatz fuer die draw-Closure in Go). */
+// Loop (Ersatz fuer die draw-Closure in Go).
 static void draw(void) {
     if (!g_solver->done) {
         solver_next(g_solver);
@@ -146,11 +146,11 @@ static void draw(void) {
 
     l3d_begin_scene(g_scene);
 
-    /* Bodengitter (XZ-Ebene bei y=0) aus dem geteilten Mesh. */
+    // Bodengitter (XZ-Ebene bei y=0) aus dem geteilten Mesh.
     l3d_draw_mesh(g_gridMesh, g_gridStyle, NULL);
 
-    /* Alle Wuerfel in EINEM Instancing-Draw-Call. */
-    arr_delete(instances); /* Laenge auf 0, Kapazitaet bleibt */
+    // Alle Wuerfel in EINEM Instancing-Draw-Call.
+    arr_delete(instances); // Laenge auf 0, Kapazitaet bleibt
     instances = draw_cubes(instances, g_solver);
 
     l3d_draw_mesh_instanced(g_cubeMesh, g_cubeStyle,
@@ -159,9 +159,9 @@ static void draw(void) {
 }
 
 int main(void) {
-    srand((unsigned) time(NULL)); /* Zufalls-Seed fuer l3d_random_float() */
+    srand((unsigned) time(NULL)); // Zufalls-Seed fuer l3d_random_float()
 
-    /* Zufaelliges Gitter; Start und Ziel duerfen keine Waende sein. */
+    // Zufaelliges Gitter; Start und Ziel duerfen keine Waende sein.
     HashMap *walls = hm_create(4096, sizeof(Point), sizeof(int), NULL, NULL);
     random_grid(EDGE_CELLS, EDGE_CELLS, 0.3, walls);
 
@@ -178,7 +178,7 @@ int main(void) {
     g_scene.cam.up     = vec3(0, 1, 0);
     g_scene.cam.far    = 500;
 
-    /* Meshes EINMAL erzeugen und wiederverwenden. */
+    // Meshes EINMAL erzeugen und wiederverwenden.
     g_cubeMesh = make_cube_mesh(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE);
     g_gridMesh = make_grid_mesh(EDGE_LENGTH, EDGE_CELLS);
 
@@ -186,7 +186,7 @@ int main(void) {
     g_gridStyle.lineWidth = 1;
 
     g_cubeStyle.stroke    = color_hex("#6b5200");
-    g_cubeStyle.fill      = color_hex("#ffffff"); /* wird pro Instanz ueberschrieben */
+    g_cubeStyle.fill      = color_hex("#ffffff"); // wird pro Instanz ueberschrieben
     g_cubeStyle.lineWidth = 1;
     g_cubeStyle.mode      = STYLE_BOTH;
 
@@ -200,7 +200,7 @@ int main(void) {
     l3d_set_batch_sort(1);
     l3d_start_animation(draw);
 
-    /* Aufraeumen (nach dem Schliessen des Fensters). */
+    // Aufraeumen (nach dem Schliessen des Fensters).
     arr_free(instances);
     mesh_free(&g_cubeMesh);
     mesh_free(&g_gridMesh);

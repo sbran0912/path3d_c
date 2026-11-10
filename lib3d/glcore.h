@@ -127,11 +127,11 @@ typedef void     (*PFN_glViewport)(GLint x, GLint y, GLsizei width, GLsizei heig
 L3D_GL_FUNCS(L3D_GL_DECL)
 #undef L3D_GL_DECL
 
-/* Laedt alle Funktionszeiger; liefert 1 bei Erfolg, sonst 0. */
+// Laedt alle Funktionszeiger; liefert 1 bei Erfolg, sonst 0.
 int l3d_gl_load(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* GLCORE_H */
+#endif // GLCORE_H

@@ -86,17 +86,17 @@ static const char *FRAG_SRC =
 /* ==================================================================
  * FIXE PUFFER  (keine dynamischen Datenstrukturen im Renderer)
  * ================================================================== */
-#define MAX_BATCH_VERTS (1u << 19)   /* ~74k Vertices (2 MiB) */
+#define MAX_BATCH_VERTS (1u << 19)   // ~74k Vertices (2 MiB)
 #define MAX_BATCH_CMDS  8192
-#define MAX_INST_GEOM   (1u << 15)   /* Osteo-Geometrie der Instanzen */
-#define MAX_INST_DATA   (1u << 19)   /* ~26k Instanzen (2 MiB) */
+#define MAX_INST_GEOM   (1u << 15)   // Osteo-Geometrie der Instanzen
+#define MAX_INST_DATA   (1u << 19)   // ~26k Instanzen (2 MiB)
 #define MAX_INST_CMDS   1024
 #define K_MAX_KEYS      512
 
 typedef struct {
     uint32_t mode;
-    int      first;   /* Start in batchVerts (Vertex-Nummer) */
-    int      count;   /* Anzahl Vertices */
+    int      first;   // Start in batchVerts (Vertex-Nummer)
+    int      count;   // Anzahl Vertices
     ColorState  col;
     EffectMode  effect;
     ColorState  grad2;
@@ -171,11 +171,11 @@ static int keyPressed[K_MAX_KEYS];
 
 /* --- Zeichenzustand --- */
 static DrawState state = {
-    {1, 1, 1, 1},  /* fill */
-    {0, 0, 0, 1},  /* stroke */
-    1.0,           /* lineW */
-    EFFECT_FLAT,   /* effect */
-    {0, 0, 0, 1},  /* grad2 */
+    {1, 1, 1, 1},  // fill
+    {0, 0, 0, 1},  // stroke
+    1.0,           // lineW
+    EFFECT_FLAT,   // effect
+    {0, 0, 0, 1},  // grad2
 };
 
 /* --- Batching --- */
@@ -183,7 +183,7 @@ static float   batchVerts[MAX_BATCH_VERTS];
 static int     batchVertCount = 0;
 static DrawCmd batchCmds[MAX_BATCH_CMDS];
 static int     batchCmdCount  = 0;
-static int     batchCapBytes  = 0;   /* aktuell allozierte Byte-Groesse des VBO */
+static int     batchCapBytes  = 0;   // aktuell allozierte Byte-Groesse des VBO
 static int     batchSort      = 0;
 
 /* --- Instancing --- */
@@ -210,7 +210,7 @@ static double gradRadius    = 1.0;
  * HILFSFUNKTIONEN (intern)
  * ================================================================== */
 
-/* Zeilen-major double[4][4] -> Spalten-major float[16] fuer OpenGL. */
+// Zeilen-major double[4][4] -> Spalten-major float[16] fuer OpenGL.
 static void flatten_matrix(const Mat4x4 *m, float *out) {
     out[0]  = (float)m->m[0][0]; out[1]  = (float)m->m[1][0];
     out[2]  = (float)m->m[2][0]; out[3]  = (float)m->m[3][0];
@@ -223,7 +223,7 @@ static void flatten_matrix(const Mat4x4 *m, float *out) {
 }
 
 static int effect_to_mode(EffectMode effect) {
-    /* enum-Werte sind bereits 0/1/2 wie in Go; trotzdem explizit. */
+    // enum-Werte sind bereits 0/1/2 wie in Go; trotzdem explizit.
     switch (effect) {
     case EFFECT_GRADIENT: return 1;
     case EFFECT_PULSE:    return 2;
@@ -238,8 +238,8 @@ static int arr16_eq(const float *a, const float *b) {
     return 1;
 }
 
-/* Zwei aufeinanderfolgende Befehle mit identischem Zustand zusammenfassen.
- * LINE_LOOP wird nie zusammengefasst (schliesst sich selbst). */
+// Zwei aufeinanderfolgende Befehle mit identischem Zustand zusammenfassen.
+// LINE_LOOP wird nie zusammengefasst (schliesst sich selbst).
 static int can_merge(const DrawCmd *a, const DrawCmd *b) {
     return a->mode == b->mode &&
            a->mode != GL_LINE_LOOP &&
@@ -257,8 +257,8 @@ static int can_merge(const DrawCmd *a, const DrawCmd *b) {
            a->lit == b->lit;
 }
 
-/* Sortier-Ordnung ueber den (fuer das Merging relevanten) Zustand.
- * view/proj sind pro Frame konstant und werden daher nicht verglichen. */
+// Sortier-Ordnung ueber den (fuer das Merging relevanten) Zustand.
+// view/proj sind pro Frame konstant und werden daher nicht verglichen.
 static int cmd_key_less(const DrawCmd *a, const DrawCmd *b) {
     if (a->mode != b->mode) return a->mode < b->mode;
     if (a->lit != b->lit) return a->lit < b->lit;
@@ -281,7 +281,7 @@ static int cmd_key_less(const DrawCmd *a, const DrawCmd *b) {
 }
 
 /* --- Sortier-Kontext fuer qsort (ein Thread, daher static ok) --- */
-static DrawCmd *sort_cmds = NULL;      /* aktuelle Befehlstabelle */
+static DrawCmd *sort_cmds = NULL;      // aktuelle Befehlstabelle
 
 static int cmd_order_cmp(const void *pa, const void *pb) {
     int a = *((const int *) pa);
@@ -293,8 +293,8 @@ static int cmd_order_cmp(const void *pa, const void *pb) {
     return 0;
 }
 
-/* Haengt den Vertex-Block von src an dst an und legt (bei gleichem Zustand
- * wie der letzte Befehl) die Kommandos zusammen. */
+// Haengt den Vertex-Block von src an dst an und legt (bei gleichem Zustand
+// wie der letzte Befehl) die Kommandos zusammen.
 static void merge_block(float *dstData, int *dstLen, DrawCmd *dstCmds,
                         int *dstCmdCount, DrawCmd src, const float *srcData) {
     DrawCmd c = src;
@@ -315,20 +315,20 @@ static void merge_block(float *dstData, int *dstLen, DrawCmd *dstCmds,
  * BATCHING - SAMMELN & ZEICHNEN (Kern des Renderers)
  * ================================================================== */
 
-/* Sammelt eine Immediate-Primitive im Frame-Batch. Die Modell-Matrix wird
- * in die Vertices gebacken und die Farbe pro Vertex abgelegt. */
+// Sammelt eine Immediate-Primitive im Frame-Batch. Die Modell-Matrix wird
+// in die Vertices gebacken und die Farbe pro Vertex abgelegt.
 static void submit(uint32_t mode, const float *verts, int nfloats,
                    int useStroke, const Mat4x4 *model) {
     ColorState col = state.fill;
-    int lit = 1;   /* gefuellte Flaechen werden beleuchtet */
+    int lit = 1;   // gefuellte Flaechen werden beleuchtet
     if (useStroke) {
         col = state.stroke;
         lit = 0;
     }
     int flat = (state.effect == EFFECT_FLAT);
 
-    /* Flache Primitive tragen ihre Farbe pro Vertex (uColor bleibt weiss);
-     * Gradient/Pulse nutzen uColor (Vertex-Farbe bleibt weiss). */
+    // Flache Primitive tragen ihre Farbe pro Vertex (uColor bleibt weiss);
+    // Gradient/Pulse nutzen uColor (Vertex-Farbe bleibt weiss).
     ColorState vertexCol = {1, 1, 1, 1};
     ColorState uniformCol = {1, 1, 1, 1};
     if (flat) vertexCol = col; else uniformCol = col;
@@ -350,7 +350,7 @@ static void submit(uint32_t mode, const float *verts, int nfloats,
     memcpy(cmd.proj, projUniform, sizeof(cmd.proj));
     cmd.lit = lit;
 
-    /* Vertices mit der Modell-Matrix backen und mit Farbe interleaven. */
+    // Vertices mit der Modell-Matrix backen und mit Farbe interleaven.
     Mat4x4 mmat = model ? *model : mat4_identity();
     int n = nfloats / 3;
     for (int i = 0; i < n; i++) {
@@ -374,7 +374,7 @@ static void submit(uint32_t mode, const float *verts, int nfloats,
         batchVerts[batchVertCount++] = (float)vertexCol.a;
     }
 
-    /* Aufeinanderfolgende Befehle mit identischem Zustand zusammenfassen. */
+    // Aufeinanderfolgende Befehle mit identischem Zustand zusammenfassen.
     if (batchCmdCount > 0 && can_merge(&batchCmds[batchCmdCount - 1], &cmd)) {
         batchCmds[batchCmdCount - 1].count += cmd.count;
         return;
@@ -395,14 +395,14 @@ static void submit_lines(const float *verts, int nfloats, const Mat4x4 *model) {
     submit(GL_LINES, verts, nfloats, 1, model);
 }
 
-/* Sammelt einen GPU-Instancing-Zeichenauftrag. */
+// Sammelt einen GPU-Instancing-Zeichenauftrag.
 static void submit_instanced(const float *triangles, int tri_n,
                              const float *lines, int line_n,
                              DrawStyle style, const Instance *instances,
                              int count) {
     if (count <= 0) return;
 
-    /* Instanz-Daten: Modell-Matrix (Spalten-major) + Farbe = 20 Floats. */
+    // Instanz-Daten: Modell-Matrix (Spalten-major) + Farbe = 20 Floats.
     int instFirst = instDataCount / 20;
     for (int k = 0; k < count; k++) {
         const Mat4x4 *m = &instances[k].model;
@@ -435,7 +435,7 @@ static void submit_instanced(const float *triangles, int tri_n,
     }
     int instCount = count;
 
-    /* Basis-Geometrie anhaengen (Farbe weiss; pro Instanz ueberschrieben). */
+    // Basis-Geometrie anhaengen (Farbe weiss; pro Instanz ueberschrieben).
     int nbTri = tri_n / 3;
     int nbLines = line_n / 3;
 
@@ -509,13 +509,13 @@ static void submit_instanced(const float *triangles, int tri_n,
     }
 }
 
-/* Zeichnet alle gesammelten Instancing-Auftraege. */
+// Zeichnet alle gesammelten Instancing-Auftraege.
 static void flush_instanced(void) {
     if (instCmdCount == 0) return;
 
     glBindVertexArray(vao);
 
-    /* Basis-Geometrie hochladen. */
+    // Basis-Geometrie hochladen.
     glBindBuffer(GL_ARRAY_BUFFER, vboGeom);
     int geomBytes = instGeomCount * (int) sizeof(float);
     if (geomBytes > geomCapBytes) {
@@ -533,7 +533,7 @@ static void flush_instanced(void) {
     glVertexAttribDivisor((GLuint) locPos, 0);
     glVertexAttribDivisor((GLuint) locColorAttr, 0);
 
-    /* Instanz-Daten hochladen (20 floats/Instanz). */
+    // Instanz-Daten hochladen (20 floats/Instanz).
     glBindBuffer(GL_ARRAY_BUFFER, vboInst);
     int instBytes = instDataCount * (int) sizeof(float);
     if (instBytes > instCapBytes) {
@@ -559,8 +559,8 @@ static void flush_instanced(void) {
     glUniform4f(locColor, 1, 1, 1, 1);
     for (int i = 0; i < instCmdCount; i++) {
         InstCmd *c = &instCmds[i];
-        /* GL 3.3 kennt keinen baseInstance-Parameter - die Instanz-Attribute
-         * werden pro Kommando auf den Start der jeweiligen Instanzen gesetzt. */
+        // GL 3.3 kennt keinen baseInstance-Parameter - die Instanz-Attribute
+        // werden pro Kommando auf den Start der jeweiligen Instanzen gesetzt.
         int instOffset = c->instFirst * 20 * 4;
         for (int k = 0; k < 4; k++) {
             GLuint loc = (GLuint)(locInstModel + k);
@@ -585,7 +585,7 @@ static void flush_instanced(void) {
     }
     glUniform1i(locInstanced, 0);
 
-    /* Divisoren/Attribute zuruecksetzen, damit normale Draws sauber bleiben. */
+    // Divisoren/Attribute zuruecksetzen, damit normale Draws sauber bleiben.
     for (int k = 0; k < 4; k++) {
         GLuint loc = (GLuint)(locInstModel + k);
         glVertexAttribDivisor(loc, 0);
@@ -599,8 +599,8 @@ static void flush_instanced(void) {
     instCmdCount = 0;
 }
 
-/* Zeichnet alle gesammelten Primitives des Frames mit einem einzigen
- * wiederverwendbaren VBO. */
+// Zeichnet alle gesammelten Primitives des Frames mit einem einzigen
+// wiederverwendbaren VBO.
 void l3d_flush_batch(void) {
     if (batchCmdCount == 0 && instCmdCount == 0) return;
 
@@ -652,7 +652,7 @@ void l3d_flush_batch(void) {
     flush_instanced();
 }
 
-/* Sortiert (falls aktiviert) und fasst die Pending-Batch zusammen. */
+// Sortiert (falls aktiviert) und fasst die Pending-Batch zusammen.
 void l3d_compact_batch(void) {
     if (!batchSort || batchCmdCount < 2) return;
 
@@ -701,7 +701,7 @@ static void on_key(GLFWwindow *win, int key, int scancode, int action, int mods)
     if (key >= 0 && key < K_MAX_KEYS) {
         if (action == GLFW_PRESS) {
             keyDown[key] = 1;
-            keyPressed[key] = 1; /* Kante merken (GLFW_REPEAT zaehlt nicht) */
+            keyPressed[key] = 1; // Kante merken (GLFW_REPEAT zaehlt nicht)
         } else if (action == GLFW_RELEASE) {
             keyDown[key] = 0;
         }
@@ -746,7 +746,7 @@ void l3d_set_fullscreen(int on) {
     if (window == NULL || (on ? 1 : 0) == fullscreen) return;
     if (on) {
         GLFWmonitor *monitor = glfwGetPrimaryMonitor();
-        if (!monitor) return; /* ohne Monitor kein Vollbild */
+        if (!monitor) return; // ohne Monitor kein Vollbild
         const GLFWvidmode *mode = glfwGetVideoMode(monitor);
         if (!mode) return;
         glfwGetWindowPos(window, &windowedPos[0], &windowedPos[1]);
@@ -759,8 +759,8 @@ void l3d_set_fullscreen(int on) {
     }
     fullscreen = on;
 
-    /* Framebuffer-Groesse sofort uebernehmen (Callback feuert ggf. erst
-     * beim naechsten Poll). */
+    // Framebuffer-Groesse sofort uebernehmen (Callback feuert ggf. erst
+    // beim naechsten Poll).
     glfwGetFramebufferSize(window, &frameW, &frameH);
     glViewport(0, 0, frameW, frameH);
 }
@@ -1223,7 +1223,7 @@ int l3d_init(void) {
     locLighted    = glGetUniformLocation(program, "uLighted");
     locLightDir   = glGetUniformLocation(program, "uLightDir");
 
-    /* VAO/VBO anlegen (OpenGL 3.3 Core benoetigt ein VAO). */
+    // VAO/VBO anlegen (OpenGL 3.3 Core benoetigt ein VAO).
     glGenVertexArrays(1, &vao);
     glGenBuffers(1, &vbo);
     glGenBuffers(1, &vboGeom);
@@ -1234,19 +1234,19 @@ int l3d_init(void) {
     glUniform1f(locRadius, 1);
     glUniform1i(locLighted, 0);
     glUniform1i(locInstanced, 0);
-    glUniform3f(locLightDir, 0, 0, -1); /* Headlight: Kamera blickt +Z */
+    glUniform3f(locLightDir, 0, 0, -1); // Headlight: Kamera blickt +Z
 
     memcpy(projUniform, identity16, sizeof(projUniform));
     memcpy(viewUniform, identity16, sizeof(viewUniform));
     glUniformMatrix4fv(locProjection, 1, GL_FALSE, projUniform);
     glUniformMatrix4fv(locView, 1, GL_FALSE, viewUniform);
 
-    /* Fog-Defaults (kein Nebel). */
+    // Fog-Defaults (kein Nebel).
     glUniform1f(locFogNear, 0);
     glUniform1f(locFogFar, 1);
     glUniform4f(locFogColor, 0, 0, 0, 0);
 
-    /* Depth-Testing + Alpha-Blending. */
+    // Depth-Testing + Alpha-Blending.
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glEnable(GL_BLEND);
@@ -1261,7 +1261,7 @@ int l3d_init(void) {
     glViewport(0, 0, frameW, frameH);
     startTime = glfwGetTime();
 
-    /* Zustand zuruecksetzen. */
+    // Zustand zuruecksetzen.
     state.fill   = (ColorState){1, 1, 1, 1};
     state.stroke = (ColorState){0, 0, 0, 1};
     state.lineW  = 1.0;
@@ -1309,7 +1309,7 @@ void l3d_start_animation(void (*fn)(void)) {
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-        /* F11-Umschaltung (nach PollEvents anwenden). */
+        // F11-Umschaltung (nach PollEvents anwenden).
         if (toggleFullscreenWanted) {
             toggleFullscreenWanted = 0;
             l3d_toggle_fullscreen();

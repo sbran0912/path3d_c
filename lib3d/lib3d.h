@@ -5,12 +5,14 @@
  * lib3d - C-Port des Go-Pakets lib3d.
  *
  * Inhalt (vollstaendig uebertragen aus dem Go-Original):
- *   vec.go / mat4.go / color.go / math.go   -> Vektor-, Matrix-, Farb-,
- *                                              Mathe-Helfer
  *   mesh.go / body.go / mesh_io.go          -> Mesh-Erzeugung, Bodies,
  *                                              OBJ-Loader
  *   draw.go / shader.go / renderer.go       -> Zeichen-Fassade, Renderer
  *                                              (OpenGL 3.3 Core, GLFW)
+ *
+ * Die Basis-Helfer (vec.go / mat4.go / color.go / math.go sowie die
+ * generischen Container arr_* und hm_*) liegen in lib3d_util.h und
+ * werden hier eingebunden.
  *
  * Konventionen (identisch zum Go-Code):
  *   - +Y zeigt nach oben, Kamera blickt in +Z.
@@ -25,39 +27,37 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "lib3d_util.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* ------------------------------------------------------------------
  * TYPEN
+ *
+ * Vec3, Vec2, Mat4x4, ColorState und ColorInput kommen aus
+ * lib3d_util.h (oben eingebunden).
  * ------------------------------------------------------------------ */
-typedef struct { double x, y, z; } Vec3;
-typedef struct { double x, y, s; } Vec2;
-typedef struct { double m[4][4]; } Mat4x4;   /* zeilen-major */
-
-typedef struct { double r, g, b, a; } ColorState;
-typedef struct { int set; ColorState color; } ColorInput;
-
 typedef enum { STYLE_STROKE = 0, STYLE_FILL = 1, STYLE_BOTH = 2 } DrawStyle;
 typedef enum { EFFECT_FLAT = 0, EFFECT_GRADIENT = 1, EFFECT_PULSE = 2 } EffectMode;
 
-/* Mesh: reine Zeichen-Geometrie (lokale Koordinaten). */
+// Mesh: reine Zeichen-Geometrie (lokale Koordinaten).
 typedef struct {
-    float *triangles;   /* xyz-Tripel einer Dreiecksliste (oder NULL) */
-    float *lines;       /* xyz-Tripel einer Linienliste (oder NULL) */
-    int    tri_floats;  /* Anzahl Floats in triangles */
-    int    line_floats; /* Anzahl Floats in lines */
+    float *triangles;   // xyz-Tripel einer Dreiecksliste (oder NULL)
+    float *lines;       // xyz-Tripel einer Linienliste (oder NULL)
+    int    tri_floats;  // Anzahl Floats in triangles
+    int    line_floats; // Anzahl Floats in lines
 } Mesh;
 
-/* Face: Dreieck eines Meshes samt (normierter) Flaechennormale. */
+// Face: Dreieck eines Meshes samt (normierter) Flaechennormale.
 typedef struct {
     Vec3 a, b, c, normal;
 } Face;
 
 typedef struct {
     int     isHit;
-    double  t;          /* Parameter entlang der Strecke, 0..1 */
+    double  t;          // Parameter entlang der Strecke, 0..1
     Vec3    point;
     Vec3    normal;
 } RayHit;
@@ -65,26 +65,26 @@ typedef struct {
 typedef struct {
     Vec3   point;
     Vec3   normal;
-    double distance;       /* ungerichteter Abstand */
-    double signedDistance; /* >0 aussen, <0 innen (bzgl. Normalen) */
+    double distance;       // ungerichteter Abstand
+    double signedDistance; // >0 aussen, <0 innen (bzgl. Normalen)
 } ClosestFaceHit;
 
-/* Body: platzierbarer, kollisionsfaehiger Koerper. */
+// Body: platzierbarer, kollisionsfaehiger Koerper.
 typedef struct {
-    Mesh   geometry; /* Zeichengeometrie (lokal) - Eigentum des Aufrufers */
-    Face  *faces;    /* lokale Faces (inkl. Normalen) - von make_body() */
+    Mesh   geometry; // Zeichengeometrie (lokal) - Eigentum des Aufrufers
+    Face  *faces;    // lokale Faces (inkl. Normalen) - von make_body()
     int    face_count;
     Vec3   pos;
-    Vec3   rot;      /* Euler-Winkel in Radiant (NULL-Vektor = keine Rotation) */
+    Vec3   rot;      // Euler-Winkel in Radiant (NULL-Vektor = keine Rotation)
 } Body;
 
-/* Eine Instanz fuer GPU-Instancing: Modell-Matrix + Farbe. */
+// Eine Instanz fuer GPU-Instancing: Modell-Matrix + Farbe.
 typedef struct {
     Mat4x4     model;
     ColorState color;
 } Instance;
 
-/* Zeichen-Optionen (Immediate-Mode). set == 0 -> nicht ueberschreiben. */
+// Zeichen-Optionen (Immediate-Mode). set == 0 -> nicht ueberschreiben.
 typedef struct {
     ColorInput stroke;
     ColorInput fill;
@@ -92,7 +92,7 @@ typedef struct {
     double     pointSize;
 } PrimitiveStyle;
 
-/* Zeichen-Optionen fuer Meshes/Primitive inkl. Modus. */
+// Zeichen-Optionen fuer Meshes/Primitive inkl. Modus.
 typedef struct {
     ColorInput stroke;
     ColorInput fill;
@@ -108,121 +108,13 @@ typedef struct { int enabled; double near, far; ColorState color; } Fog;
 typedef struct { Camera cam; Vec3 sunDir; Fog fog; ColorState background; } Scene;
 
 /* ------------------------------------------------------------------
- * VEC3  (Port von vec.go)
- * ------------------------------------------------------------------ */
-Vec3 vec3(double x, double y, double z);           /* NewVec3 */
-Vec3 vec3_add(Vec3 a, Vec3 b);
-Vec3 vec3_sub(Vec3 a, Vec3 b);
-Vec3 vec3_scale(Vec3 a, double s);
-Vec3 vec3_mag(Vec3 a, double m);                    /* auf Ziel-Laenge skalieren */
-Vec3 vec3_limit(Vec3 a, double maxLen);
-Vec3 vec3_negate(Vec3 a);
-double vec3_dot(Vec3 a, Vec3 b);
-Vec3 vec3_cross(Vec3 a, Vec3 b);
-double vec3_squared_length(Vec3 a);
-double vec3_length(Vec3 a);
-double vec3_distance(Vec3 a, Vec3 b);
-Vec3 vec3_normalize(Vec3 a);
-Vec3 vec3_lerp(Vec3 a, Vec3 b, double t);
-Vec3 vec3_clone(Vec3 a);
-int  vec3_equals(Vec3 a, Vec3 b, double epsilon);
-Vec3 vec3_transform(Vec3 v, const Mat4x4 *m);
-Vec3 vec3_transform_dir(Vec3 v, const Mat4x4 *m);
-
-/* ------------------------------------------------------------------
- * MATRIX  (Port von mat4.go)
- * ------------------------------------------------------------------ */
-Mat4x4 mat4_identity(void);
-Mat4x4 mat4_translate(double dx, double dy, double dz);
-Mat4x4 mat4_rotate(double ax, double ay, double az); /* Rz * Ry * Rx */
-Mat4x4 mat4_mult(const Mat4x4 *a, const Mat4x4 *b);
-Mat4x4 mat4_view_world(const Mat4x4 *view, const Mat4x4 *world);
-Mat4x4 mat4_lookat(Vec3 cameraPos, Vec3 target, Vec3 up);
-Vec3   world_to_camera(Vec3 point, const Mat4x4 *view, const Mat4x4 *world);
-Vec3   rotate_around(Vec3 point, Vec3 pivot, const Mat4x4 *rotation);
-Mat4x4 mat4_perspective(double fovY, double aspect, double near, double far);
-
-/* ------------------------------------------------------------------
- * FARBE  (Port von color.go)
- * ------------------------------------------------------------------ */
-ColorState parse_hex(const char *hex);       /* "#rgb" / "#rrggbb" */
-ColorState parse_gray(double gray);          /* 0..255 */
-ColorState parse_rgb(double r, double g, double b);    /* 0..255 */
-ColorState parse_rgba(double r, double g, double b, double a); /* 0..255 */
-int col_eq(ColorState a, ColorState b);
-
-ColorInput color_hex(const char *hex);
-ColorInput color_gray(double v);
-ColorInput color_rgb(double r, double g, double b);
-ColorInput color_rgba(double r, double g, double b, double a);
-ColorInput color_of(ColorState c);
-
-/* ------------------------------------------------------------------
- * MATH-HILFEN  (Port von math.go)
- * ------------------------------------------------------------------ */
-Vec2 project(double fov, Vec3 v);            /* 2D-Projektion fuer Overlays */
-double l3d_constrain(double value, double lo, double hi);
-int    l3d_random(int n1, int n2);            /* ganzzahlig in [n1, n2) */
-double l3d_random_float(double lo, double hi);/* in [lo, hi) */
-float  limit_num(float number, float limit);  /* begrenzt den Betrag, Vorzeichen bleibt */
-
-/* ------------------------------------------------------------------
- * DYNAMISCHES ARRAY  (frueher in lib_core.c)
- * Wachsend (grosszuegig gepuffert), Elemente werden kopiert.
- * Achtung: arr_push / arr_reduce koennen den Speicher verschieben -
- * den Rueckgabewert immer zurueckspeichern!
- * ------------------------------------------------------------------ */
-void  *arr_create(size_t capacity, size_t elemsize);
-size_t arr_len(void *arr);
-size_t arr_cap(void *arr);
-void  *arr_push(void *arr, void *val);
-void   arr_pop(void *arr, size_t idx);
-void  *arr_reduce(void *arr);
-void   arr_delete(void *arr);  /* setzt Laenge auf 0 (Kapazitaet bleibt) */
-void   arr_free(void *arr);
-
-/* ------------------------------------------------------------------
- * HASH-MAP  (generisch, Ersatz fuer Go's map[K]V; frueher in lib_core.c)
- *
- * Werte und Schluessel werden kopiert (keysize/valsize). hash/eq duerfen
- * NULL sein - dann wird FNV-1a ueber die Schluesselbytes bzw. memcmp
- * verwendet.
- * ------------------------------------------------------------------ */
-typedef uint64_t (*HashMap_HashFn)(const void *key);
-typedef int (*HashMap_EqFn)(const void *keyA, const void *keyB);
-
-typedef struct HmBucket HmBucket;
-
-typedef struct HashMap {
-    HmBucket **buckets;
-    size_t     nbuckets;
-    size_t     count;
-    size_t     keysize;
-    size_t     valsize;
-    HashMap_HashFn hash;
-    HashMap_EqFn   eq;
-} HashMap;
-
-HashMap *hm_create(int capacity, size_t keysize, size_t valsize,
-                   HashMap_HashFn hash, HashMap_EqFn eq);
-void     hm_free(HashMap *m);
-void     hm_clear(HashMap *m);
-size_t   hm_size(HashMap *m);
-int      hm_contains(HashMap *m, const void *key);
-void    *hm_get(HashMap *m, const void *key);   /* NULL, wenn abwesend */
-void     hm_put(HashMap *m, const void *key, const void *val);
-void     hm_remove(HashMap *m, const void *key);
-void     hm_foreach(HashMap *m, void (*cb)(const void *key, void *val, void *ud),
-                    void *ud);
-
-/* ------------------------------------------------------------------
  * MESH  (Port von mesh.go)
  * ------------------------------------------------------------------ */
 Mesh make_cube_mesh(double w, double h, double d);
 Mesh make_pyramid_mesh(double base, double height);
 Mesh make_sphere_mesh(double radius, int slices, int stacks);
 Mesh make_grid_mesh(double size, int cells);
-Mesh scale_mesh(Mesh mesh, double s);        /* liefert neue Kopie */
+Mesh scale_mesh(Mesh mesh, double s);        // liefert neue Kopie
 void mesh_free(Mesh *m);
 
 /* ------------------------------------------------------------------
@@ -232,12 +124,12 @@ void mesh_free(Mesh *m);
 #define L3D_OBJ_ERR_FILE   (-1)
 #define L3D_OBJ_ERR_VERTEX (-2)
 #define L3D_OBJ_ERR_INDEX  (-3)
-int load_obj(const char *path, Mesh *out);   /* 0 = Erfolg, sonst Fehlercode */
+int load_obj(const char *path, Mesh *out);   // 0 = Erfolg, sonst Fehlercode
 
 /* ------------------------------------------------------------------
  * BODY / FACES  (Port von body.go)
  * ------------------------------------------------------------------ */
-Face *build_faces(const Mesh *mesh, int *out_count); /* malloc; faces_free() */
+Face *build_faces(const Mesh *mesh, int *out_count); // malloc; faces_free()
 void  faces_free(Face *faces);
 Face  transform_face(Face f, const Mat4x4 *model);
 Face *transform_faces(const Face *faces, int count, const Mat4x4 *model,
@@ -245,10 +137,10 @@ Face *transform_faces(const Face *faces, int count, const Mat4x4 *model,
 RayHit raycast_segment(Vec3 p1, Vec3 p2, const Face *faces, int count);
 ClosestFaceHit closest_point_to_face(Vec3 p, Face face);
 
-Body make_body(Mesh geometry, Vec3 pos, Vec3 rot); /* rot = {0,0,0} fuer keine */
+Body make_body(Mesh geometry, Vec3 pos, Vec3 rot); // rot = {0,0,0} fuer keine
 Mat4x4 body_model_matrix(const Body *b);
 Face *body_world_faces(const Body *b, int *out_count);
-void  body_free(Body *b);                    /* gibt nur faces frei */
+void  body_free(Body *b);                    // gibt nur faces frei
 
 /* ------------------------------------------------------------------
  * KAMERA / SZENE
@@ -348,41 +240,41 @@ Scene  scene_new(void);
  * RENDER-API  (Port von renderer.go / draw.go / shader.go)
  * ------------------------------------------------------------------ */
 
-/* Setup & Schleife */
-int  l3d_init(void);                         /* 1 = ok, 0 = Fehler */
+// Setup & Schleife
+int  l3d_init(void);                         // 1 = ok, 0 = Fehler
 void l3d_start_animation(void (*draw)(void));
 void l3d_no_loop(void);
 
-/* Fenster / Eingabe */
+// Fenster / Eingabe
 int  l3d_get_width(void);
 int  l3d_get_height(void);
 int  l3d_mouse_down(void);
-int  l3d_mouse_up(void);                     /* konsumierend */
+int  l3d_mouse_up(void);                     // konsumierend
 int  l3d_is_fullscreen(void);
 void l3d_set_fullscreen(int on);
 void l3d_toggle_fullscreen(void);
 int  l3d_key_down(int key);
-int  l3d_key_pressed(int key);                /* konsumierend */
+int  l3d_key_pressed(int key);                // konsumierend
 
-/* Matrizen & Szene */
+// Matrizen & Szene
 void l3d_set_projection(const Mat4x4 *m);
 void l3d_set_view(const Mat4x4 *m);
 void l3d_apply_camera(Camera cam);
 void l3d_begin_scene(Scene scene);
 
-/* Batching */
+// Batching
 void l3d_flush_batch(void);
 int  l3d_pending_draw_calls(void);
 int  l3d_pending_instanced_draw_calls(void);
 void l3d_set_batch_sort(int on);
 void l3d_compact_batch(void);
 
-/* Uniforms */
+// Uniforms
 void l3d_set_gradient_center(double cx, double cy, double cz, double radius);
 void l3d_set_fog(double near, double far, double r, double g, double b, double a);
 void l3d_set_light_direction(double x, double y, double z);
 
-/* Zeichenzustand */
+// Zeichenzustand
 void l3d_fill_color(ColorState color);
 void l3d_fill_color_input(ColorInput color);
 void l3d_stroke_color(ColorState color);
@@ -395,7 +287,7 @@ void l3d_background(ColorState color);
 void l3d_background_input(ColorInput color);
 void l3d_point_size(double px);
 
-/* Zeichen-Fassade (draw.go) */
+// Zeichen-Fassade (draw.go)
 void l3d_draw_mesh(Mesh mesh, ShapeStyle style, const Mat4x4 *model);
 void l3d_draw_mesh_instanced(Mesh mesh, ShapeStyle style,
                              const Instance *instances, int count);
@@ -416,7 +308,7 @@ void l3d_draw_circle(double x, double y, double z, double radius, ShapeStyle sty
 void l3d_draw_polygon(const double *pts, int nfloats, ShapeStyle style,
                       const Mat4x4 *model);
 
-/* Immediate-Primitive (renderer.go) */
+// Immediate-Primitive (renderer.go)
 void l3d_point(double x, double y, double z, const Mat4x4 *model);
 void l3d_line(double x1, double y1, double z1, double x2, double y2, double z2,
               const Mat4x4 *model);
@@ -437,4 +329,4 @@ void l3d_polygon(const double *pts, int nfloats, DrawStyle style,
 }
 #endif
 
-#endif /* LIB3D_H */
+#endif // LIB3D_H

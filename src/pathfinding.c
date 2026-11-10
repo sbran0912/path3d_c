@@ -7,22 +7,22 @@
  * A*-Pfadsuche (Port von pathfinding.go)
  * ================================================================== */
 
-/* Die 4 orthogonalen Bewegungsrichtungen. */
+// Die 4 orthogonalen Bewegungsrichtungen.
 static Point directions[4] = {
-    {0, -1},  /* hoch */
-    {0, 1},   /* runter */
-    {-1, 0},  /* links */
-    {1, 0},   /* rechts */
+    {0, -1},  // hoch
+    {0, 1},   // runter
+    {-1, 0},  // links
+    {1, 0},   // rechts
 };
 
-/* Suchdaten eines Punktes (intern; entspricht Go's Node). */
+// Suchdaten eines Punktes (intern; entspricht Go's Node).
 typedef struct {
     int   g, f;
     Point parent;
-    int   hasParent; /* false beim Startknoten */
+    int   hasParent; // false beim Startknoten
 } PathNode;
 
-/* Manhattan-Distanz als Heuristik (4 Richtungen). */
+// Manhattan-Distanz als Heuristik (4 Richtungen).
 static int heuristic(Point a, Point b) {
     int absX = a.x - b.x;
     if (absX < 0) absX = -absX;
@@ -31,13 +31,13 @@ static int heuristic(Point a, Point b) {
     return absX + absY;
 }
 
-/* Prueft, ob ein Punkt im Gitter liegt und nicht blockiert ist. */
+// Prueft, ob ein Punkt im Gitter liegt und nicht blockiert ist.
 static int is_valid(Point p, int width, int height, HashMap *walls) {
     return p.x >= 0 && p.x < width && p.y >= 0 && p.y < height &&
            !hm_contains(walls, &p);
 }
 
-/* Sortier-Kontext fuer qsort: die nodes-Map des aktuellen Solvers. */
+// Sortier-Kontext fuer qsort: die nodes-Map des aktuellen Solvers.
 static HashMap *sort_nodes = NULL;
 
 static int point_by_f_cmp(const void *pa, const void *pb) {
@@ -59,8 +59,8 @@ static int arr_contains_point(void *arr, Point p) {
     return 0;
 }
 
-/* Laeuft ueber die Parent-Verweise vom Ziel zurueck zum Start; der Pfad
- * wird umgedreht zurueckgegeben (arr_* von Point). */
+// Laeuft ueber die Parent-Verweise vom Ziel zurueck zum Start; der Pfad
+// wird umgedreht zurueckgegeben (arr_* von Point).
 static Point *reconstruct_path(HashMap *nodes, Point current) {
     void *path = arr_create(16, sizeof(Point));
     path = arr_push(path, &current);
@@ -70,7 +70,7 @@ static Point *reconstruct_path(HashMap *nodes, Point current) {
         current = n->parent;
         path = arr_push(path, &current);
     }
-    /* Pfad wurde rueckwaerts gebaut, also umdrehen. */
+    // Pfad wurde rueckwaerts gebaut, also umdrehen.
     size_t cnt = arr_len(path);
     Point *arr = (Point *) path;
     for (size_t i = 0; i < cnt / 2; i++) {
@@ -92,18 +92,18 @@ Solver *solver_new(HashMap *walls, int width, int height, Point start, Point goa
     s->nodes = hm_create(width * height + 4, sizeof(Point), sizeof(PathNode),
                          NULL, NULL);
 
-    /* Alle begehbaren Punkte vorab mit "unendlich" anlegen, damit in der
-     * Schleife kein Sonderfall fuer neue Knoten noetig ist. */
+    // Alle begehbaren Punkte vorab mit "unendlich" anlegen, damit in der
+    // Schleife kein Sonderfall fuer neue Knoten noetig ist.
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             Point p = {x, y};
-            if (!hm_contains(walls, &p)) { /* begehbar */
+            if (!hm_contains(walls, &p)) { // begehbar
                 PathNode n = {INT_MAX, INT_MAX, {0, 0}, 0};
                 hm_put(s->nodes, &p, &n);
             }
         }
     }
-    /* Der Startknoten bekommt direkt seine echten Werte. */
+    // Der Startknoten bekommt direkt seine echten Werte.
     PathNode st = {0, heuristic(start, goal), {0, 0}, 0};
     hm_put(s->nodes, &start, &st);
 
@@ -116,15 +116,15 @@ Solver *solver_new(HashMap *walls, int width, int height, Point start, Point goa
 void solver_next(Solver *s) {
     if (s->done) return;
 
-    /* Aufsteigend nach F sortieren: kleinstes F an Index 0. Jeder Punkt im
-     * OpenSet hat garantiert einen Eintrag in nodes. */
+    // Aufsteigend nach F sortieren: kleinstes F an Index 0. Jeder Punkt im
+    // OpenSet hat garantiert einen Eintrag in nodes.
     sort_nodes = s->nodes;
     qsort(s->openSet, arr_len(s->openSet), sizeof(Point), point_by_f_cmp);
     sort_nodes = NULL;
 
-    s->current = *((Point *) s->openSet); /* Index 0 */
+    s->current = *((Point *) s->openSet); // Index 0
 
-    /* Ziel erreicht? */
+    // Ziel erreicht?
     if (s->current.x == s->goal.x && s->current.y == s->goal.y) {
         s->path = reconstruct_path(s->nodes, s->current);
         s->done = 1;
@@ -144,16 +144,16 @@ void solver_next(Solver *s) {
         neighbor.x = s->current.x + directions[d].x;
         neighbor.y = s->current.y + directions[d].y;
         if (!is_valid(neighbor, s->width, s->height, s->walls)) continue;
-        /* Bereits endgueltig verarbeitet -> ueberspringen. */
+        // Bereits endgueltig verarbeitet -> ueberspringen.
         if (hm_contains(s->closedSet, &neighbor)) continue;
 
-        /* Ein Schritt kostet immer 1. Existiert garantiert: alle begehbaren
-         * Punkte wurden vorab angelegt. */
+        // Ein Schritt kostet immer 1. Existiert garantiert: alle begehbaren
+        // Punkte wurden vorab angelegt.
         int tentativeG = currentG + 1;
         PathNode *n = (PathNode *) hm_get(s->nodes, &neighbor);
 
-        /* Kuerzerer Weg gefunden als bisher bekannt? ("unendlich" = erster
-         * Fund). */
+        // Kuerzerer Weg gefunden als bisher bekannt? ("unendlich" = erster
+        // Fund).
         if (n && tentativeG < n->g) {
             n->g = tentativeG;
             n->f = tentativeG + heuristic(neighbor, s->goal);
@@ -166,7 +166,7 @@ void solver_next(Solver *s) {
         }
     }
 
-    if (arr_len(s->openSet) == 0) s->done = 1; /* Kein Pfad gefunden */
+    if (arr_len(s->openSet) == 0) s->done = 1; // Kein Pfad gefunden
 }
 
 Point *solver_current_path(Solver *s, size_t *out_len) {
@@ -174,7 +174,7 @@ Point *solver_current_path(Solver *s, size_t *out_len) {
         if (out_len) *out_len = s->path ? arr_len(s->path) : 0;
         return (Point *) s->path;
     }
-    /* Temporaerer Pfad (Start -> Current); vorherigen scratch freigeben. */
+    // Temporaerer Pfad (Start -> Current); vorherigen scratch freigeben.
     if (s->scratchPath) {
         arr_free(s->scratchPath);
         s->scratchPath = NULL;
@@ -199,7 +199,7 @@ Point *pathfinding_find_path(HashMap *walls, int width, int height,
     Solver *s = solver_new(walls, width, height, start, goal);
     while (!s->done) solver_next(s);
     Point *result = (Point *) s->path;
-    s->path = NULL; /* Eigentum an den Aufrufer uebertragen */
+    s->path = NULL; // Eigentum an den Aufrufer uebertragen
     solver_free(s);
     return result;
 }

@@ -125,13 +125,13 @@ Mesh make_sphere_mesh(double radius, int slices, int stacks) {
     if (slices < 3) slices = 3;
     if (stacks < 2) stacks = 2;
 
-    /* Anzahl Dreiecke: i==0 oder i==stacks-1 -> 1, sonst 2 */
+    // Anzahl Dreiecke: i==0 oder i==stacks-1 -> 1, sonst 2
     int tri_verts = 0;
     for (int i = 0; i < stacks; i++) {
         int per_ring = (i == 0 || i == stacks - 1) ? 1 : 2;
         tri_verts += per_ring * slices;
     }
-    /* Linien: Meridiane + Breitenringe (ohne Pol-Ringe) */
+    // Linien: Meridiane + Breitenringe (ohne Pol-Ringe)
     int line_segs = slices * stacks + (stacks - 1) * slices;
 
     Mesh m = {0};
@@ -156,7 +156,7 @@ Mesh make_sphere_mesh(double radius, int slices, int stacks) {
             }
         }
     }
-    /* Meridiane (Pol zu Pol) */
+    // Meridiane (Pol zu Pol)
     for (int j = 0; j < slices; j++) {
         for (int i = 0; i < stacks; i++) {
             line_push(m.lines, &li,
@@ -164,7 +164,7 @@ Mesh make_sphere_mesh(double radius, int slices, int stacks) {
                       sphere_point(radius, slices, stacks, i + 1, j));
         }
     }
-    /* Breitenringe (ohne die zusammenfallenden Pol-Ringe) */
+    // Breitenringe (ohne die zusammenfallenden Pol-Ringe)
     for (int i = 1; i < stacks; i++) {
         for (int j = 0; j < slices; j++) {
             line_push(m.lines, &li,
@@ -190,7 +190,7 @@ Mesh make_grid_mesh(double size, int cells) {
     int li = 0;
     for (int i = 0; i <= cells; i++) {
         double p = -half + (double) i * step;
-        /* Linie parallel zur Z-Achse und Linie parallel zur X-Achse. */
+        // Linie parallel zur Z-Achse und Linie parallel zur X-Achse.
         line_push(m.lines, &li, vec3(p, 0, -half), vec3(p, 0, half));
         line_push(m.lines, &li, vec3(-half, 0, p), vec3(half, 0, p));
     }
@@ -262,8 +262,8 @@ Face *transform_faces(const Face *faces, int count, const Mat4x4 *model,
     return out;
 }
 
-/* Moeller-Trumbore: Strecke [p1, p1+dir] gegen Dreieck (a,b,c).
- * Liefert 1 und t (Parameter 0..1) bei Treffer. */
+// Moeller-Trumbore: Strecke [p1, p1+dir] gegen Dreieck (a,b,c).
+// Liefert 1 und t (Parameter 0..1) bei Treffer.
 static int ray_triangle(Vec3 p1, Vec3 dir, Vec3 a, Vec3 b, Vec3 c,
                         double *out_t) {
     Vec3 e1 = vec3_sub(b, a);
@@ -303,7 +303,7 @@ RayHit raycast_segment(Vec3 p1, Vec3 p2, const Face *faces, int count) {
     return best;
 }
 
-/* Naechster Punkt auf dem Dreieck (a,b,c) zu p (Ericson, RTCD 5.1.5). */
+// Naechster Punkt auf dem Dreieck (a,b,c) zu p (Ericson, RTCD 5.1.5).
 static Vec3 closest_point_on_triangle(Vec3 p, Vec3 a, Vec3 b, Vec3 c) {
     Vec3 ab = vec3_sub(b, a);
     Vec3 ac = vec3_sub(c, a);
@@ -338,7 +338,7 @@ static Vec3 closest_point_on_triangle(Vec3 p, Vec3 a, Vec3 b, Vec3 c) {
         return vec3_add(b, vec3_scale(vec3_sub(c, b), w)); // Kante BC
     }
 
-    /* Inneres: baryzentrische Koordinaten (u, v, w), u = 1 - v - w. */
+    // Inneres: baryzentrische Koordinaten (u, v, w), u = 1 - v - w.
     double denom = 1.0 / (va + vb + vc);
     double v = vb * denom;
     double w = vc * denom;
@@ -389,11 +389,11 @@ void body_free(Body *b) {
  * ================================================================== */
 
 typedef struct {
-    /* Anzahl-Phase */
+    // Anzahl-Phase
     int vertex_count;
     int tri_floats;
     int line_floats;
-    /* Fuell-Phase */
+    // Fuell-Phase
     Vec3  *verts;
     int    vert_cap;
     int    vert_next;
@@ -405,8 +405,8 @@ typedef struct {
     int    line_next;
 } ObjState;
 
-/* Parst ein Face-/Linien-Token ("i", "i/j", "i/j/k", "i//k") in einen
- * 0-basierten Index. Liefert L3D_OBJ_OK oder L3D_OBJ_ERR_INDEX. */
+// Parst ein Face-/Linien-Token ("i", "i/j", "i/j/k", "i//k") in einen
+// 0-basierten Index. Liefert L3D_OBJ_OK oder L3D_OBJ_ERR_INDEX.
 static int obj_index(const char *tok, int vertexCount, int *out) {
     const char *slash = strchr(tok, '/');
     size_t len = slash ? (size_t)(slash - tok) : strlen(tok);
@@ -440,7 +440,7 @@ static void obj_emit_line(ObjState *st, Vec3 a, Vec3 b) {
     line_push(st->out_lines, &st->line_next, a, b);
 }
 
-/* Verarbeitet eine OBJ-Zeile. liefert L3D_OBJ_OK oder einen Fehlercode. */
+// Verarbeitet eine OBJ-Zeile. liefert L3D_OBJ_OK oder einen Fehlercode.
 static int obj_handle_line(char *line, ObjState *st, int line_no,
                            int fill, int *err_line) {
     (void) line_no;
@@ -480,9 +480,9 @@ static int obj_handle_line(char *line, ObjState *st, int line_no,
     if (strcmp(toks[0], "f") == 0 || strcmp(toks[0], "l") == 0) {
         int idx[256];
         int ni = 0;
-        /* Negative Indizes sind relativ zur Anzahl der BIS JETZT gelesenen
-         * Vertices (wie in Go: len(verts) zur Parse-Zeit). Daher im
-         * Fill-Modus vert_next, im Zaehl-Modus vertex_count als Basis. */
+        // Negative Indizes sind relativ zur Anzahl der BIS JETZT gelesenen
+        // Vertices (wie in Go: len(verts) zur Parse-Zeit). Daher im
+        // Fill-Modus vert_next, im Zaehl-Modus vertex_count als Basis.
         int base = fill ? st->vert_next : st->vertex_count;
         for (int i = 1; i < nt; i++) {
             int out = 0;
@@ -491,7 +491,7 @@ static int obj_handle_line(char *line, ObjState *st, int line_no,
             idx[ni++] = out;
         }
         if (toks[0][0] == 'f') {
-            /* Fan-Triangulierung: (idx0, idx[j], idx[j+1]) */
+            // Fan-Triangulierung: (idx0, idx[j], idx[j+1])
             if (fill) {
                 if (st->tri_next + (ni - 2) * 9 > st->tri_cap) return L3D_OBJ_ERR_INDEX;
                 for (int j = 1; j + 1 < ni; j++) {
@@ -502,7 +502,7 @@ static int obj_handle_line(char *line, ObjState *st, int line_no,
                 if (ni >= 3) st->tri_floats += (ni - 2) * 9;
             }
         } else {
-            /* Aufeinanderfolgende Paare */
+            // Aufeinanderfolgende Paare
             if (fill) {
                 if (st->line_next + (ni - 1) * 6 > st->line_cap) return L3D_OBJ_ERR_INDEX;
                 for (int j = 0; j + 1 < ni; j++) {
@@ -515,12 +515,12 @@ static int obj_handle_line(char *line, ObjState *st, int line_no,
         return L3D_OBJ_OK;
     }
 
-    /* vn, vt, g, o, s, mtllib, usemtl, ... ignoriert. */
+    // vn, vt, g, o, s, mtllib, usemtl, ... ignoriert.
     return L3D_OBJ_OK;
 }
 
-/* Verarbeitet alle Zeilen des Puffers NACH ZWEIMAL in fill/count-Modus.
- * Puffer wird NICHT zerstoert (sauberer als strtok_r). */
+// Verarbeitet alle Zeilen des Puffers NACH ZWEIMAL in fill/count-Modus.
+// Puffer wird NICHT zerstoert (sauberer als strtok_r).
 #define OBJ_MAX_LINE 8192
 
 static int obj_process_lines(const char *buf, ObjState *st, int fill,
@@ -566,7 +566,7 @@ int load_obj(const char *path, Mesh *out) {
     buf[sz] = '\n';
     buf[sz + 1] = '\0';
 
-    /* Pass 1: zaehlen + validieren */
+    // Pass 1: zaehlen + validieren
     ObjState st = {0};
     int err = L3D_OBJ_OK;
     int err_line = 0;
@@ -577,7 +577,7 @@ int load_obj(const char *path, Mesh *out) {
         return err;
     }
 
-    /* Pass 2: Arrays exakt allozieren und fuellen. */
+    // Pass 2: Arrays exakt allozieren und fuellen.
     Mesh m = {0};
     m.tri_floats = st.tri_floats;
     m.line_floats = st.line_floats;

@@ -1,4 +1,4 @@
-#include "lib3d.h"
+#include "lib3d_util.h"
 
 #include <errno.h>
 #include <math.h>
@@ -285,10 +285,7 @@ float limit_num(float number, float limit) {
     return numberMag * vorzeichen;
 }
 
-/* ==================================================================
- * DYNAMISCHES ARRAY  (frueher in lib_core.c)
- * ================================================================== */
-
+//dynamisches Array
 void* arr_create(size_t capacity, size_t elemsize) {
     size_t *raw = malloc(3 * sizeof(size_t) + (capacity * elemsize));
     raw[0] = 0;                 // Number of elements currently in the array
