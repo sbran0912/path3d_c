@@ -10,7 +10,10 @@ BINDIR = bin
 OBJS = $(patsubst %.c,$(OBJDIR)/%.o,$(SRCS))
 TARGET = $(BINDIR)/path3d
 
-.PHONY: all clean
+# CMake/Ninja-Build (clang) - parallel zum gcc-Build oben.
+BUILDDIR = build
+
+.PHONY: all clean run cmake cmake-clean cmake-run
 
 all: $(TARGET)
 
@@ -24,3 +27,20 @@ $(OBJDIR)/%.o: %.c
 
 clean:
 	rm -rf $(OBJDIR) $(BINDIR)
+
+# Startet den gcc-Build (baut ihn vorher bei Bedarf).
+run: $(TARGET)
+	./$(TARGET)
+
+# Konfiguriert neu und baut den clang-Build nach $(BUILDDIR)/path3d.
+cmake:
+	cmake -S . -B $(BUILDDIR) -G Ninja
+	cmake --build $(BUILDDIR)
+
+# Entfernt den CMake-Build samt compile_commands.json-Symlink.
+cmake-clean:
+	rm -rf $(BUILDDIR) compile_commands.json
+
+# Baut und startet den clang-Build ($(BUILDDIR)/path3d).
+cmake-run: cmake
+	./$(BUILDDIR)/path3d

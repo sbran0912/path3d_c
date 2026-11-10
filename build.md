@@ -37,9 +37,23 @@ Neu konfigurieren (`cmake -S . -B build -G Ninja`) muss man nur, wenn sich
 ## Make (gcc)
 
 ```sh
-make          # baut bin/path3d
-make clean    # entfernt bin/ und obj/
+make              # baut bin/path3d
+make run          # baut bei Bedarf und startet bin/path3d
+make clean        # entfernt bin/ und obj/
 ```
+
+## Make (Targets für den CMake-Build)
+
+Alternativ lässt sich der CMake/Ninja-Build (clang) auch über das Makefile
+anstoßen:
+
+```sh
+make cmake        # konfiguriert und baut build/path3d
+make cmake-run    # baut und startet build/path3d
+make cmake-clean  # entfernt build/ und den compile_commands.json-Symlink
+```
+
+`make` bleibt dabei weiterhin der gcc-Build nach `bin/path3d`.
 
 ## Starten
 

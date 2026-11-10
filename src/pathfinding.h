@@ -11,7 +11,7 @@
  *     fuer Go's map)
  * ================================================================== */
 
-#include "lib3d.h"
+#include "lib3d_util.h"
 
 #ifdef __cplusplus
 extern "C" {
